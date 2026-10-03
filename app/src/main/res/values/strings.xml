@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">棱镜</string>
+    <string name="widget_description">Prism 音乐播放器小组件</string>
+    <string name="service_playback">音乐播放服务</string>
+    <string name="service_desktop_lyrics">桌面歌词</string>
+</resources>
