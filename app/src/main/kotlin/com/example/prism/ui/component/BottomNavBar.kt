@@ -8,7 +8,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -79,7 +81,6 @@ fun BottomNavBar(
     val isDragging = draggingOffsetPx != null
     val targetOffsetPx = tabWidthPx * selectedIndex
 
-    // 长按
     var pressStart by remember { mutableLongStateOf(0L) }
     var isDraggingNow by remember { mutableStateOf(false) }
     var longPressActive by remember { mutableStateOf(false) }
@@ -106,12 +107,11 @@ fun BottomNavBar(
         ((animOffsetPx + tabWidthPx / 2f) / tabWidthPx).toInt().coerceIn(0, tabs.size - 1)
     } else selectedIndex
 
-    // 椭圆缩放
     val lensScale by animateFloatAsState(
         targetValue = when {
-            isDragging -> 1.15f
-            longPressActive -> 1.22f
-            else -> 1.02f
+            isDragging -> 1.10f
+            longPressActive -> 1.15f
+            else -> 1.0f
         },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -133,7 +133,7 @@ fun BottomNavBar(
                     width = 1.dp,
                     brush = Brush.linearGradient(
                         listOf(
-                            Color.White.copy(alpha = if (dark) 0.4f else 0.7f),
+                            Color.White.copy(alpha = if (dark) 0.4f else 0.75f),
                             Color.White.copy(alpha = if (dark) 0.1f else 0.3f)
                         )
                     ),
@@ -147,12 +147,15 @@ fun BottomNavBar(
                         pressStart = System.currentTimeMillis()
                         isDraggingNow = false
                         longPressActive = false
+
                         var isDrag = false
                         var offset = (down.position.x - tabWidthPx / 2f)
                             .coerceIn(0f, maxOffset)
+
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
                             if (change.pressed) {
                                 val delta = change.positionChange().x
                                 if (!isDrag && abs(delta) > 3f) {
@@ -184,10 +187,10 @@ fun BottomNavBar(
                     }
                 }
         ) {
-            // ★ 横向椭圆指示器
             if (tabWidthPx > 0f) {
                 val tabWidthDp = with(density) { tabWidthPx.toDp() }
                 val offsetDp = with(density) { animOffsetPx.toDp() }
+
                 Box(
                     Modifier
                         .offset(x = offsetDp + 8.dp)
@@ -209,7 +212,6 @@ fun BottomNavBar(
                                 0.95f
                             )
                     ) {
-                        // 内层径向高光
                         Box(
                             Modifier.fillMaxSize()
                                 .background(
@@ -237,14 +239,12 @@ fun BottomNavBar(
                 }
             }
 
-            // ★ 4 个 tab 内容：图标 + 文字
             Row(Modifier.fillMaxSize()) {
                 tabs.forEachIndexed { index, tab ->
                     val isNearest = isDragging && index == nearestIndex
                     val isSelected = !isDragging && tab == current
                     val isActive = isSelected || isNearest
 
-                    // 字体大小动态
                     val targetFontSize = when {
                         isDragging && isNearest -> 13f
                         isDragging -> 10f
@@ -259,7 +259,6 @@ fun BottomNavBar(
                         ),
                         label = "fontSize"
                     )
-
                     val textAlpha = when {
                         isDragging && !isNearest -> 0.5f
                         isDragging -> 1f
@@ -271,13 +270,8 @@ fun BottomNavBar(
                         animationSpec = spring(stiffness = Spring.StiffnessLow),
                         label = "textAlpha"
                     )
-
-                    // 图标缩放
                     val iconScale by animateFloatAsState(
-                        targetValue = when {
-                            isActive -> 1.15f
-                            else -> 1f
-                        },
+                        targetValue = if (isActive) 1.15f else 1f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
@@ -289,9 +283,8 @@ fun BottomNavBar(
                         Modifier.weight(1f).fillMaxHeight(),
                         contentAlignment = Alignment.Center
                     ) {
-                        androidx.compose.foundation.layout.Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 tab.icon,
@@ -305,9 +298,7 @@ fun BottomNavBar(
                                         scaleY = iconScale
                                     }
                             )
-                            androidx.compose.foundation.layout.Spacer(
-                                Modifier.height(3.dp)
-                            )
+                            Spacer(Modifier.height(3.dp))
                             Text(
                                 tab.label,
                                 color = Color.White.copy(alpha = textAlphaValue),
