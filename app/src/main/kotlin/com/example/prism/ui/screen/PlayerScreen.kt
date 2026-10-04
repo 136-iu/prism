@@ -51,14 +51,7 @@ fun PlayerScreen(
     val accent = ThemeState.accent
     val style = ThemeState.playerStyle
 
-    // 进度刷新（UI 层主动拉）
-    LaunchedEffect(song?.id) {
-        while (true) {
-            PlayerManager.updateProgress()
-            delay(500)
-        }
-    }
-
+   
     song?.let { s ->
         when (style) {
             PlayerStyle.SALT -> SaltStyle(
