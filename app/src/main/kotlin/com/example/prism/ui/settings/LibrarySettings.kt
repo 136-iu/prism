@@ -8,24 +8,35 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.prism.data.Storage
 import com.example.prism.ui.theme.ThemeState
 
 @Composable
 fun LibrarySettings(onBack: () -> Unit) {
-    var showFolder by remember { mutableStateOf(true) }
-    var showAlbum by remember { mutableStateOf(true) }
-    var showArtist by remember { mutableStateOf(true) }
+    var showFolder by remember { mutableStateOf(Storage.getLibShowFolder()) }
+    var showAlbum by remember { mutableStateOf(Storage.getLibShowAlbum()) }
+    var showArtist by remember { mutableStateOf(Storage.getLibShowArtist()) }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
         SettingsHeader("📚 资料库", onBack)
         Spacer(Modifier.height(20.dp))
+
         SectionCard("显示") {
-            ToggleRow("显示文件夹", showFolder) { showFolder = it }
-            ToggleRow("显示专辑", showAlbum) { showAlbum = it }
-            ToggleRow("显示歌手", showArtist) { showArtist = it }
+            ToggleRow("显示文件夹", showFolder) {
+                showFolder = it; Storage.setLibShowFolder(it)
+            }
+            ToggleRow("显示专辑", showAlbum) {
+                showAlbum = it; Storage.setLibShowAlbum(it)
+            }
+            ToggleRow("显示歌手", showArtist) {
+                showArtist = it; Storage.setLibShowArtist(it)
+            }
         }
+
         Spacer(Modifier.height(12.dp))
+
         SectionCard("扫描") {
             Text("扫描根目录：/sdcard/Music",
                 color = ThemeState.textDim, fontSize = 13.sp)
@@ -36,6 +47,7 @@ fun LibrarySettings(onBack: () -> Unit) {
             Text("忽略系统铃声：开",
                 color = ThemeState.textDim, fontSize = 13.sp)
         }
+
         Spacer(Modifier.height(40.dp))
     }
 }
