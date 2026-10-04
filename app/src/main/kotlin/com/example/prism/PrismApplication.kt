@@ -12,9 +12,12 @@ class PrismApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
+
+        // ★ 必须最先初始化 Storage（其他 Store 依赖 prefs）
         Storage.init(this)
         SourceStore.init(this)
         AiStore.init(this)
+
         PlayerManager.init(this)
         MediaNotificationManager.createChannel(this)
     }
