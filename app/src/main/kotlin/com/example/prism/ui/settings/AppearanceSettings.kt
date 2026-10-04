@@ -235,12 +235,15 @@ private fun StyleButton(text: String, selected: Boolean, modifier: Modifier, onC
 
 // ---------- 三个通用组件（所有设置子页共用）----------
 
+// 找到文件底部的这 3 个函数，覆盖掉：
+
 @Composable
 fun SettingsHeader(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape)
-                .background(ThemeState.iconBg)
+            Modifier.size(40.dp)
+                .liquidGlass(CircleShape, ThemeState.isDark,
+                    ThemeState.glassTint, ThemeState.glassIntensity)
                 .clickable(onClick = onBack),
             contentAlignment = Alignment.Center
         ) {
@@ -255,12 +258,17 @@ fun SettingsHeader(title: String, onBack: () -> Unit) {
 fun SectionCard(title: String, content: @Composable () -> Unit) {
     Column(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(ThemeState.cardBg)
+            .liquidGlass(
+                RoundedCornerShape(16.dp),
+                ThemeState.isDark,
+                ThemeState.glassTint,
+                ThemeState.glassIntensity
+            )
             .padding(16.dp)
     ) {
         if (title.isNotBlank()) {
-            Text(title, color = ThemeState.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(title, color = ThemeState.text, fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
         }
         content()
@@ -275,15 +283,28 @@ fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, color = ThemeState.text, fontSize = 14.sp)
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = ThemeState.accent,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color.Gray
+        // 开关本身也玻璃化
+        Box(
+            Modifier
+                .size(width = 50.dp, height = 28.dp)
+                .clip(CircleShape)
+                .liquidGlass(
+                    CircleShape,
+                    ThemeState.isDark,
+                    if (checked) ThemeState.accent else ThemeState.glassTint,
+                    if (checked) 0.85f else 0.4f
+                )
+                .clickable { onChange(!checked) },
+            contentAlignment = if (checked) Alignment.CenterEnd
+                               else Alignment.CenterStart
+        ) {
+            Box(
+                Modifier
+                    .size(22.dp)
+                    .padding(horizontal = 2.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
             )
-        )
+        }
     }
 }
