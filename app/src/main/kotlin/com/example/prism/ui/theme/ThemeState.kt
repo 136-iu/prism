@@ -51,11 +51,6 @@ object ThemeState {
     val iconBg: Color
         get() = if (isDark) Color(0x1AFFFFFF) else Color(0x0D000000)
 
-    fun setAccent(color: Color) {
-        accent = color
-        accentValue = color.value.toLong()
-    }
-
     fun setAccent(id: String, value: Long) {
         presetId = id
         accentValue = value
