@@ -19,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,107 +46,137 @@ fun BottomNavBar(
     val dark = ThemeState.isDark
     val gi = if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
 
-    var barWidth by remember { mutableFloatStateOf(0f) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
     val tabs = NavTab.values()
+    var barWidth by remember { mutableFloatStateOf(0f) }
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
 
-    // 拖动跟手时整体水平偏移
-    val visualOffset by animateFloatAsState(
-        targetValue = if (isDragging) dragOffset * 0.3f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "navDragOffset"
+    val currentIndex = tabs.indexOf(current)
+    val tabWidthPx = if (barWidth > 0f) barWidth / tabs.size else 0f
+
+    // 小椭圆的水平偏移（px）
+    val targetOffset = currentIndex * tabWidthPx + dragOffsetPx
+    val lensOffset by animateFloatAsState(
+        targetValue = if (isDragging) targetOffset else currentIndex * tabWidthPx,
+        animationSpec = if (isDragging) {
+            spring(stiffness = Spring.StiffnessHigh)
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        },
+        label = "lensOffset"
     )
 
-    Row(
+    // 拖动时小椭圆稍微放大
+    val lensScale by animateFloatAsState(
+        targetValue = if (isDragging) 1.05f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "lensScale"
+    )
+
+    Box(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .height(60.dp)
-            .onSizeChanged { barWidth = it.width.toFloat() }
-            .graphicsLayer { translationX = visualOffset }
-            .liquidGlass(
-                RoundedCornerShape(30.dp), dark, ThemeState.glassTint, gi
-            )
-            .pointerInput(current) {
-                detectDragGestures(
-                    onDragStart = {
-                        isDragging = true
-                        dragOffset = 0f
-                    },
-                    onDragEnd = {
-                        isDragging = false
-                        if (barWidth > 0f) {
-                            val tabWidth = barWidth / tabs.size
-                            val currentIndex = tabs.indexOf(current)
-                            val startCenter = tabWidth * (currentIndex + 0.5f)
-                            val endCenter = startCenter + dragOffset
-                            val targetIndex = (endCenter / tabWidth).toInt()
-                                .coerceIn(0, tabs.size - 1)
-                            if (targetIndex != currentIndex) {
-                                onSelect(tabs[targetIndex])
-                            }
-                        }
-                        dragOffset = 0f
-                    },
-                    onDrag = { change, drag ->
-                        dragOffset += drag.x
-                        // 限制拖动范围
-                        dragOffset = dragOffset.coerceIn(
-                            -barWidth, barWidth
-                        )
-                        change.consume()
-                    }
-                )
-            }
-            .padding(horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceEvenly
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .height(64.dp)
     ) {
-        tabs.forEach { tab ->
-            val selected = tab == current
-            val scale by animateFloatAsState(
-                targetValue = if (selected) 1.08f else 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "navScale"
-            )
-
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        if (selected) accent.copy(alpha = 0.22f)
-                        else Color.Transparent
+        // 底栏玻璃
+        Box(
+            Modifier
+                .fillMaxSize()
+                .onSizeChanged {
+                    barWidth = it.width.toFloat()
+                }
+                .liquidGlass(RoundedCornerShape(32.dp), dark, ThemeState.glassTint, gi)
+                .pointerInput(current) {
+                    detectDragGestures(
+                        onDragStart = {
+                            isDragging = true
+                            dragOffsetPx = 0f
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            if (tabWidthPx > 0f) {
+                                val endCenter = currentIndex * tabWidthPx + dragOffsetPx
+                                val target = (endCenter / tabWidthPx).toInt()
+                                    .coerceIn(0, tabs.size - 1)
+                                if (target != currentIndex) {
+                                    onSelect(tabs[target])
+                                }
+                            }
+                            dragOffsetPx = 0f
+                        },
+                        onDrag = { change, drag ->
+                            dragOffsetPx = (dragOffsetPx + drag.x).coerceIn(
+                                -currentIndex * tabWidthPx,
+                                (tabs.size - 1 - currentIndex) * tabWidthPx
+                            )
+                            change.consume()
+                        }
                     )
-                    .clickable {
-                        // 搜索 tab 用长按触发全屏搜索
-                        onSelect(tab)
-                    }
-                    .padding(vertical = 6.dp)
+                }
+        )
+
+        // iOS 26 风格：悬浮小椭圆（跟随选中/拖动）
+        if (tabWidthPx > 0f) {
+            Box(
+                Modifier
+                    .offset(x = 0.dp)
+                    .width((tabWidthPx / 2.7f).dp)  // 小椭圆宽度 ≈ 1/3 tab 宽
+                    .height(44.dp)
+                    .align(Alignment.CenterStart)
                     .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    tab.icon,
-                    contentDescription = tab.label,
-                    tint = if (selected) accent else ThemeState.textDim,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    tab.label,
-                    color = if (selected) accent else ThemeState.textDim,
-                    fontSize = 10.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                )
+                        translationX = lensOffset + (tabWidthPx / 2f) - (tabWidthPx / 5.4f)
+                        translationY = 10f
+                        scaleX = lensScale
+                        scaleY = lensScale
+                    }
+                    .liquidGlass(
+                        RoundedCornerShape(22.dp), dark,
+                        accent.copy(alpha = 0.35f), 0.9f
+                    )
+            )
+        }
+
+        // 4 个 tab 内容（图标 + 文字），铺在椭圆上面
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                val selected = tab == current
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onSelect(tab) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            tab.icon,
+                            contentDescription = tab.label,
+                            tint = if (selected) accent else ThemeState.textDim,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            tab.label,
+                            color = if (selected) accent else ThemeState.textDim,
+                            fontSize = 10.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold
+                                         else FontWeight.Normal
+                        )
+                    }
+                }
             }
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,6 +19,7 @@ import com.example.prism.ui.theme.ThemeState
 
 @Composable
 fun PlaylistSettings(onBack: () -> Unit) {
+    val context = LocalContext.current
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
@@ -33,9 +35,13 @@ fun PlaylistSettings(onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
 
         SectionCard("操作") {
-            ActionButton("📤 导出歌单") { /* TODO: 后续接实现 */ }
+            ActionButton("📤 导出歌单") {
+                android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+            }
             Spacer(Modifier.height(8.dp))
-            ActionButton("📥 导入歌单") { /* TODO: 后续接实现 */ }
+            ActionButton("📥 导入歌单") {
+                android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
 
         Spacer(Modifier.height(40.dp))

@@ -14,7 +14,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.prism.data.Song
+import com.example.prism.data.Storage
 import com.example.prism.playback.PlayerManager
 import com.example.prism.ui.theme.ThemeState
 import com.example.prism.ui.theme.liquidGlass
@@ -36,17 +36,19 @@ fun HomeScreen(
     val dark = ThemeState.isDark
     val gi = if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
 
+    // ★ 读设置
+    val bigOnLeft = Storage.getHomeBigSide() == "left"
+    val smallCols = Storage.getHomeSmallCols().coerceIn(2, 6)
+    val smallRows = Storage.getHomeSmallRows().coerceIn(1, 10)
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 顶部
         item {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("🎵 欢迎回来", color = ThemeState.text,
                         fontSize = 26.sp, fontWeight = FontWeight.Bold)
@@ -68,64 +70,55 @@ fun HomeScreen(
 
         if (allSongs.isEmpty()) return@LazyColumn
 
-        // 大卡 + 右侧小卡
         item {
             Row(
                 Modifier.fillMaxWidth().height(200.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                BigCard(
-                    song = allSongs.first(),
-                    dark = dark,
-                    gi = gi,
-                    modifier = Modifier.weight(6f).fillMaxHeight(),
-                    onClick = { onSongClick(allSongs.first()) }
-                )
-                Column(
-                    Modifier.weight(4f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    allSongs.drop(1).take(2).forEach { s ->
-                        SideSmallCard(
-                            song = s,
-                            dark = dark,
-                            gi = gi,
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            onClick = { onSongClick(s) }
-                        )
+                val bigCard: @Composable (Modifier) -> Unit = { m ->
+                    BigCard(song = allSongs.first(), dark = dark, gi = gi,
+                        modifier = m, onClick = { onSongClick(allSongs.first()) })
+                }
+                val smallCol: @Composable (Modifier) -> Unit = { m ->
+                    Column(m, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        allSongs.drop(1).take(2).forEach { s ->
+                            SideSmallCard(song = s, dark = dark, gi = gi,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                onClick = { onSongClick(s) })
+                        }
                     }
+                }
+
+                if (bigOnLeft) {
+                    bigCard(Modifier.weight(6f).fillMaxHeight())
+                    smallCol(Modifier.weight(4f).fillMaxHeight())
+                } else {
+                    smallCol(Modifier.weight(4f).fillMaxHeight())
+                    bigCard(Modifier.weight(6f).fillMaxHeight())
                 }
             }
             Spacer(Modifier.height(10.dp))
         }
 
-        // 更多推荐标题
         item {
             Text("🎵 更多推荐", color = ThemeState.text,
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
         }
 
-        // 每行 4 张的网格（总共 5~6 行 = 20~24 张）
-        val gridSongs = allSongs.drop(3).take(24)
-        val rows = gridSongs.chunked(4)
+        // ★ 网格 N 列 × M 行
+        val total = smallCols * smallRows
+        val gridSongs = allSongs.drop(3).take(total)
+        val rows = gridSongs.chunked(smallCols)
         items(rows) { rowSongs ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowSongs.forEach { s ->
-                    GridCard(
-                        song = s,
-                        dark = dark,
-                        gi = gi,
-                        isPlaying = s.id == currentSong?.id,
+                    GridCard(song = s, isPlaying = s.id == currentSong?.id,
                         modifier = Modifier.weight(1f),
-                        onClick = { onSongClick(s) }
-                    )
+                        onClick = { onSongClick(s) })
                 }
-                // 补齐空位
-                repeat(4 - rowSongs.size) {
+                repeat(smallCols - rowSongs.size) {
                     Spacer(Modifier.weight(1f))
                 }
             }
@@ -135,22 +128,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun BigCard(
-    song: Song,
-    dark: Boolean,
-    gi: Float,
-    modifier: Modifier,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier
-            .liquidGlass(RoundedCornerShape(20.dp), dark, ThemeState.glassTint, gi)
-            .clickable(onClick = onClick)
-    ) {
-        Column(
-            Modifier.fillMaxSize().padding(14.dp),
-            verticalArrangement = Arrangement.Bottom
-        ) {
+private fun BigCard(song: Song, dark: Boolean, gi: Float,
+                    modifier: Modifier, onClick: () -> Unit) {
+    Box(modifier
+        .liquidGlass(RoundedCornerShape(20.dp), dark, ThemeState.glassTint, gi)
+        .clickable(onClick = onClick)) {
+        Column(Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.Bottom) {
             Text(song.title, color = ThemeState.text, fontSize = 18.sp,
                 fontWeight = FontWeight.Bold, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
@@ -163,27 +147,16 @@ private fun BigCard(
 }
 
 @Composable
-private fun SideSmallCard(
-    song: Song,
-    dark: Boolean,
-    gi: Float,
-    modifier: Modifier,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier
-            .liquidGlass(RoundedCornerShape(16.dp), dark, ThemeState.glassTint, gi)
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            Modifier.fillMaxSize().padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(6.dp))
-                    .background(ThemeState.iconBg),
-                contentAlignment = Alignment.Center
-            ) {
+private fun SideSmallCard(song: Song, dark: Boolean, gi: Float,
+                          modifier: Modifier, onClick: () -> Unit) {
+    Box(modifier
+        .liquidGlass(RoundedCornerShape(16.dp), dark, ThemeState.glassTint, gi)
+        .clickable(onClick = onClick)) {
+        Row(Modifier.fillMaxSize().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(6.dp))
+                .background(ThemeState.iconBg),
+                contentAlignment = Alignment.Center) {
                 if (song.artworkUri != null) {
                     AsyncImage(model = song.artworkUri, contentDescription = null,
                         contentScale = ContentScale.Crop,
@@ -206,56 +179,30 @@ private fun SideSmallCard(
 }
 
 @Composable
-private fun GridCard(
-    song: Song,
-    dark: Boolean,
-    gi: Float,
-    isPlaying: Boolean,
-    modifier: Modifier,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 封面
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(ThemeState.iconBg),
-            contentAlignment = Alignment.Center
-        ) {
+private fun GridCard(song: Song, isPlaying: Boolean,
+                     modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier.clip(RoundedCornerShape(12.dp))
+        .clickable(onClick = onClick).padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().aspectRatio(1f)
+            .clip(RoundedCornerShape(10.dp))
+            .background(ThemeState.iconBg),
+            contentAlignment = Alignment.Center) {
             if (song.artworkUri != null) {
-                AsyncImage(
-                    model = song.artworkUri,
-                    contentDescription = null,
+                AsyncImage(model = song.artworkUri, contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                    modifier = Modifier.fillMaxSize())
             } else {
                 Text("🎵", fontSize = 32.sp)
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(
-            song.title,
+        Text(song.title,
             color = if (isPlaying) ThemeState.accent else ThemeState.text,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            song.artist,
-            color = ThemeState.textDim,
-            fontSize = 10.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            fontSize = 12.sp, fontWeight = FontWeight.Medium,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(song.artist, color = ThemeState.textDim,
+            fontSize = 10.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis)
     }
 }
