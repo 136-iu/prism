@@ -25,6 +25,7 @@ object PlayerManager {
     private var appContext: Context? = null
     private var tickJob: Job? = null
     private var serviceStarted = false
+    private var lastWidgetUpdate = 0L
 
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong
@@ -57,8 +58,7 @@ object PlayerManager {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
-                    updateWidgets()
-                    updateNotification()
+                    updateWidgets(force = true)
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     val idx = currentMediaItemIndex
@@ -67,8 +67,7 @@ object PlayerManager {
                         _currentSong.value = list[idx]
                         recordPlay(list[idx])
                     }
-                    updateWidgets()
-                    updateNotification()
+                    updateWidgets(force = true)
                 }
                 override fun onPlaybackStateChanged(state: Int) {
                     if (state == Player.STATE_READY) {
@@ -86,44 +85,38 @@ object PlayerManager {
         startTick()
     }
 
-    // ★ 新增：启动前台服务显示通知
     private fun startForegroundService() {
         if (serviceStarted) return
         val ctx = appContext ?: return
         try {
             val intent = Intent(ctx, PlaybackService::class.java)
-            if (Build.VERSION.SDK_INT >= 26) {
-                ctx.startForegroundService(intent)
-            } else {
-                ctx.startService(intent)
-            }
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(intent)
+            else ctx.startService(intent)
             serviceStarted = true
         } catch (_: Exception) {}
-    }
-
-    // ★ 新增：更新通知（Media3 自动处理，只是触发一次刷新）
-    private fun updateNotification() {
-        // MediaSessionService 会自动读取 player 状态刷新通知
-        // 这里不需要额外做什么
     }
 
     private fun startTick() {
         tickJob?.cancel()
         tickJob = CoroutineScope(Dispatchers.Main).launch {
             while (true) {
-                delay(500)
-                _progressMs.value = player?.currentPosition ?: 0L
-                val d = player?.duration ?: 0L
-                if (d > 0) _durationMs.value = d
-                // 每 2 秒更新一次小组件
-                if (System.currentTimeMillis() % 2000 < 500) {
-                    updateWidgets()
+                delay(1000)
+                val p = player ?: continue
+                if (p.isPlaying) {
+                    _progressMs.value = p.currentPosition
+                }
+                val d = p.duration
+                if (d > 0 && _durationMs.value != d) {
+                    _durationMs.value = d
                 }
             }
         }
     }
 
-    private fun updateWidgets() {
+    private fun updateWidgets(force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!force && now - lastWidgetUpdate < 5000L) return
+        lastWidgetUpdate = now
         appContext?.let {
             WidgetDataCache.currentSong = _currentSong.value
             WidgetDataCache.isPlaying = _isPlaying.value
@@ -133,7 +126,6 @@ object PlayerManager {
         }
     }
 
-    private var pendingStats = 0
     private fun recordPlay(song: Song) {
         val history = Storage.loadHistory().toMutableList()
         history.remove(song.id)
@@ -154,17 +146,13 @@ object PlayerManager {
         Storage.saveStats(stats)
     }
 
-    fun setAllSongs(songs: List<Song>) {
-        _allSongs.value = songs
-    }
+    fun setAllSongs(songs: List<Song>) { _allSongs.value = songs }
 
     fun playSong(song: Song, list: List<Song> = _allSongs.value) {
         val p = player ?: return
         if (list.isEmpty()) return
 
-        // ★ 先启动前台服务
         startForegroundService()
-
         _playlist.value = list
         p.clearMediaItems()
         list.forEach { s ->
@@ -187,29 +175,19 @@ object PlayerManager {
         p.prepare()
         p.play()
         _currentSong.value = song
-        updateWidgets()
+        _progressMs.value = 0L
+        updateWidgets(force = true)
     }
 
     fun togglePlayPause() {
         val p = player ?: return
         if (p.isPlaying) p.pause() else p.play()
-        updateWidgets()
+        updateWidgets(force = true)
     }
 
-    fun next() {
-        player?.seekToNextMediaItem()
-        player?.play()
-    }
-
-    fun previous() {
-        player?.seekToPreviousMediaItem()
-        player?.play()
-    }
-
-    fun seekTo(ms: Long) {
-        player?.seekTo(ms)
-        _progressMs.value = ms
-    }
+    fun next() { player?.seekToNextMediaItem(); player?.play() }
+    fun previous() { player?.seekToPreviousMediaItem(); player?.play() }
+    fun seekTo(ms: Long) { player?.seekTo(ms); _progressMs.value = ms }
 
     fun toggleShuffle() {
         val p = player ?: return
