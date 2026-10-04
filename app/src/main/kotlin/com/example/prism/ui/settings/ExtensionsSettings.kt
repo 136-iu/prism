@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,6 +19,7 @@ import com.example.prism.ui.theme.ThemeState
 
 @Composable
 fun ExtensionsSettings(onBack: () -> Unit) {
+    val context = LocalContext.current
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
@@ -40,8 +42,12 @@ fun ExtensionsSettings(onBack: () -> Unit) {
                 Text("已导入：0 个", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SmallButton("从文件导入")
-                    SmallButton("粘贴代码")
+                    SmallButton("从文件导入") {
+                        android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    SmallButton("粘贴代码") {
+                        android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -63,7 +69,9 @@ fun ExtensionsSettings(onBack: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Text("已配置：0 个", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                 Spacer(Modifier.height(12.dp))
-                SmallButton("添加 AI 服务商")
+                SmallButton("添加 AI 服务商") {
+                    android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         }
 

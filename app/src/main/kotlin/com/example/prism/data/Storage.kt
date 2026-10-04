@@ -41,6 +41,27 @@ object Storage {
     private const val KEY_WIDGET_FOLLOW = "widget_follow"
     private const val KEY_FIRST_LAUNCH = "first_launch"
 
+    // 资料库
+    private const val KEY_LIB_SHOW_FOLDER = "lib_show_folder"
+    private const val KEY_LIB_SHOW_ALBUM = "lib_show_album"
+    private const val KEY_LIB_SHOW_ARTIST = "lib_show_artist"
+
+    // 搜索
+    private const val KEY_SEARCH_SCOPE = "search_scope"
+    private const val KEY_SEARCH_HISTORY = "search_history"
+
+    // 歌词
+    private const val KEY_LYRICS_AUTOSCROLL = "lyrics_autoscroll"
+    private const val KEY_LYRICS_DETECT_EN = "lyrics_detect_en"
+    private const val KEY_LYRICS_PROMPT_AI = "lyrics_prompt_ai"
+
+    // 播放
+    private const val KEY_PLAY_GAPLESS = "play_gapless"
+    private const val KEY_PLAY_FADE_IN = "play_fade_in"
+    private const val KEY_PLAY_RESUME = "play_resume"
+    private const val KEY_PLAY_SPEED = "play_speed"
+    private const val KEY_PLAY_FADE_DUR = "play_fade_dur"
+
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     }
@@ -146,6 +167,49 @@ object Storage {
 
     fun getWidgetFollow(): Boolean = prefs.getBoolean(KEY_WIDGET_FOLLOW, true)
     fun setWidgetFollow(v: Boolean) { prefs.edit().putBoolean(KEY_WIDGET_FOLLOW, v).apply() }
+
+    // ---------- 资料库 ----------
+    fun getLibShowFolder(): Boolean = prefs.getBoolean(KEY_LIB_SHOW_FOLDER, true)
+    fun setLibShowFolder(v: Boolean) { prefs.edit().putBoolean(KEY_LIB_SHOW_FOLDER, v).apply() }
+
+    fun getLibShowAlbum(): Boolean = prefs.getBoolean(KEY_LIB_SHOW_ALBUM, true)
+    fun setLibShowAlbum(v: Boolean) { prefs.edit().putBoolean(KEY_LIB_SHOW_ALBUM, v).apply() }
+
+    fun getLibShowArtist(): Boolean = prefs.getBoolean(KEY_LIB_SHOW_ARTIST, true)
+    fun setLibShowArtist(v: Boolean) { prefs.edit().putBoolean(KEY_LIB_SHOW_ARTIST, v).apply() }
+
+    // ---------- 搜索 ----------
+    fun getSearchScope(): String = prefs.getString(KEY_SEARCH_SCOPE, "全部") ?: "全部"
+    fun setSearchScope(v: String) { prefs.edit().putString(KEY_SEARCH_SCOPE, v).apply() }
+
+    fun getSearchHistoryEnabled(): Boolean = prefs.getBoolean(KEY_SEARCH_HISTORY, true)
+    fun setSearchHistoryEnabled(v: Boolean) { prefs.edit().putBoolean(KEY_SEARCH_HISTORY, v).apply() }
+
+    // ---------- 歌词 ----------
+    fun getLyricsAutoScroll(): Boolean = prefs.getBoolean(KEY_LYRICS_AUTOSCROLL, true)
+    fun setLyricsAutoScroll(v: Boolean) { prefs.edit().putBoolean(KEY_LYRICS_AUTOSCROLL, v).apply() }
+
+    fun getLyricsDetectEn(): Boolean = prefs.getBoolean(KEY_LYRICS_DETECT_EN, true)
+    fun setLyricsDetectEn(v: Boolean) { prefs.edit().putBoolean(KEY_LYRICS_DETECT_EN, v).apply() }
+
+    fun getLyricsPromptAi(): Boolean = prefs.getBoolean(KEY_LYRICS_PROMPT_AI, true)
+    fun setLyricsPromptAi(v: Boolean) { prefs.edit().putBoolean(KEY_LYRICS_PROMPT_AI, v).apply() }
+
+    // ---------- 播放 ----------
+    fun getPlayGapless(): Boolean = prefs.getBoolean(KEY_PLAY_GAPLESS, true)
+    fun setPlayGapless(v: Boolean) { prefs.edit().putBoolean(KEY_PLAY_GAPLESS, v).apply() }
+
+    fun getPlayFadeIn(): Boolean = prefs.getBoolean(KEY_PLAY_FADE_IN, true)
+    fun setPlayFadeIn(v: Boolean) { prefs.edit().putBoolean(KEY_PLAY_FADE_IN, v).apply() }
+
+    fun getPlayResume(): Boolean = prefs.getBoolean(KEY_PLAY_RESUME, true)
+    fun setPlayResume(v: Boolean) { prefs.edit().putBoolean(KEY_PLAY_RESUME, v).apply() }
+
+    fun getPlaySpeed(): Float = prefs.getFloat(KEY_PLAY_SPEED, 1f)
+    fun setPlaySpeed(v: Float) { prefs.edit().putFloat(KEY_PLAY_SPEED, v).apply() }
+
+    fun getPlayFadeDur(): Float = prefs.getFloat(KEY_PLAY_FADE_DUR, 1.5f)
+    fun setPlayFadeDur(v: Float) { prefs.edit().putFloat(KEY_PLAY_FADE_DUR, v).apply() }
 
     // ---------- 首次启动 ----------
     fun isFirstLaunch(): Boolean = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
