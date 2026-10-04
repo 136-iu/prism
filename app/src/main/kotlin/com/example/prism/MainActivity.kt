@@ -21,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -37,6 +36,7 @@ import com.example.prism.ui.component.MiniPlayer
 import com.example.prism.ui.component.NavTab
 import com.example.prism.ui.screen.*
 import com.example.prism.ui.settings.*
+import com.example.prism.ui.theme.GlassBackground
 import com.example.prism.ui.theme.PlayerStyle
 import com.example.prism.ui.theme.ThemeState
 
@@ -143,13 +143,7 @@ fun PrismApp() {
             fontScale = effectiveFontScale
         )
     ) {
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    listOf(ThemeState.bgStart, ThemeState.bgMid, ThemeState.bgEnd)
-                )
-            )
-        ) {
+        GlassBackground {
             Column(Modifier.fillMaxSize().systemBarsPadding()) {
                 Box(Modifier.weight(1f)) {
                     if (!hasPermission) {
@@ -201,13 +195,7 @@ fun PrismApp() {
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
-                Box(
-                    Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(
-                            listOf(ThemeState.bgStart, ThemeState.bgMid, ThemeState.bgEnd)
-                        )
-                    )
-                ) {
+                GlassBackground {
                     val close = { overlay = MainOverlay.NONE }
                     val backToPlayer = { overlay = MainOverlay.PLAYER }
                     when (overlay) {
