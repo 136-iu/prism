@@ -4,9 +4,18 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -15,20 +24,33 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.prism.ui.theme.ThemeState
 import com.example.prism.ui.theme.liquidGlass
+import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 enum class NavTab(val label: String, val icon: ImageVector) {
     HOME("主页", Icons.Filled.Home),
@@ -43,111 +65,263 @@ fun BottomNavBar(
     onSelect: (NavTab) -> Unit,
     onLongPressSearch: (() -> Unit)? = null
 ) {
-    val accent = ThemeState.accent
+    val tabs = NavTab.values()
+    val density = LocalDensity.current
     val dark = ThemeState.isDark
     val gi = if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
+    val accent = ThemeState.accent
 
-    var barWidth by remember { mutableFloatStateOf(0f) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    val tabs = NavTab.values()
+    var containerWidthPx by remember { mutableStateOf(0f) }
+    val tabWidthPx = if (containerWidthPx > 0f) containerWidthPx / tabs.size else 0f
+    val selectedIndex = tabs.indexOf(current)
 
-    // 拖动跟手时整体水平偏移
-    val visualOffset by animateFloatAsState(
-        targetValue = if (isDragging) dragOffset * 0.3f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "navDragOffset"
+    var draggingOffsetPx by remember { mutableStateOf<Float?>(null) }
+    val isDragging = draggingOffsetPx != null
+    val targetOffsetPx = tabWidthPx * selectedIndex
+
+    // 长按
+    var pressStart by remember { mutableLongStateOf(0L) }
+    var isDraggingNow by remember { mutableStateOf(false) }
+    var longPressActive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pressStart, isDraggingNow) {
+        if (pressStart > 0L && !isDraggingNow) {
+            delay(400L)
+            if (pressStart > 0L && !isDraggingNow) {
+                longPressActive = true
+            }
+        }
+    }
+
+    val animOffsetPx by animateFloatAsState(
+        targetValue = draggingOffsetPx ?: targetOffsetPx,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "indicator"
     )
 
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+    val nearestIndex = if (isDragging && tabWidthPx > 0f) {
+        ((animOffsetPx + tabWidthPx / 2f) / tabWidthPx).toInt().coerceIn(0, tabs.size - 1)
+    } else selectedIndex
+
+    // 椭圆缩放
+    val lensScale by animateFloatAsState(
+        targetValue = when {
+            isDragging -> 1.15f
+            longPressActive -> 1.22f
+            else -> 1.02f
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "lensScale"
+    )
+
+    Box(
+        Modifier.fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 14.dp)
             .height(60.dp)
-            .onSizeChanged { barWidth = it.width.toFloat() }
-            .graphicsLayer { translationX = visualOffset }
-            .liquidGlass(
-                RoundedCornerShape(30.dp), dark, ThemeState.glassTint, gi
-            )
-            .pointerInput(current) {
-                detectDragGestures(
-                    onDragStart = {
-                        isDragging = true
-                        dragOffset = 0f
-                    },
-                    onDragEnd = {
-                        isDragging = false
-                        if (barWidth > 0f) {
-                            val tabWidth = barWidth / tabs.size
-                            val currentIndex = tabs.indexOf(current)
-                            val startCenter = tabWidth * (currentIndex + 0.5f)
-                            val endCenter = startCenter + dragOffset
-                            val targetIndex = (endCenter / tabWidth).toInt()
-                                .coerceIn(0, tabs.size - 1)
-                            if (targetIndex != currentIndex) {
-                                onSelect(tabs[targetIndex])
+    ) {
+        Box(
+            Modifier.fillMaxSize()
+                .onSizeChanged { containerWidthPx = it.width.toFloat() }
+                .liquidGlass(RoundedCornerShape(30.dp), dark, ThemeState.glassTint, gi)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = if (dark) 0.4f else 0.7f),
+                            Color.White.copy(alpha = if (dark) 0.1f else 0.3f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(30.dp)
+                )
+                .pointerInput(tabs.size, tabWidthPx) {
+                    if (tabWidthPx <= 0f) return@pointerInput
+                    val maxOffset = tabWidthPx * (tabs.size - 1)
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        pressStart = System.currentTimeMillis()
+                        isDraggingNow = false
+                        longPressActive = false
+
+                        var isDrag = false
+                        var offset = (down.position.x - tabWidthPx / 2f)
+                            .coerceIn(0f, maxOffset)
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                            if (change.pressed) {
+                                val delta = change.positionChange().x
+                                if (!isDrag && abs(delta) > 3f) {
+                                    isDrag = true
+                                    isDraggingNow = true
+                                    draggingOffsetPx = offset
+                                }
+                                if (isDrag) {
+                                    change.consume()
+                                    offset = (offset + delta).coerceIn(0f, maxOffset)
+                                    draggingOffsetPx = offset
+                                }
+                            } else {
+                                val finalIdx: Int = if (isDrag) {
+                                    ((offset + tabWidthPx / 2f) / tabWidthPx)
+                                        .toInt().coerceIn(0, tabs.size - 1)
+                                } else {
+                                    (down.position.x / tabWidthPx)
+                                        .toInt().coerceIn(0, tabs.size - 1)
+                                }
+                                draggingOffsetPx = null
+                                pressStart = 0L
+                                isDraggingNow = false
+                                longPressActive = false
+                                onSelect(tabs[finalIdx])
+                                break
                             }
                         }
-                        dragOffset = 0f
-                    },
-                    onDrag = { change, drag ->
-                        dragOffset += drag.x
-                        // 限制拖动范围
-                        dragOffset = dragOffset.coerceIn(
-                            -barWidth, barWidth
-                        )
-                        change.consume()
                     }
-                )
-            }
-            .padding(horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        tabs.forEach { tab ->
-            val selected = tab == current
-            val scale by animateFloatAsState(
-                targetValue = if (selected) 1.08f else 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "navScale"
-            )
+                }
+        ) {
+            // ★ 横向椭圆指示器
+            if (tabWidthPx > 0f) {
+                val tabWidthDp = with(density) { tabWidthPx.toDp() }
+                val offsetDp = with(density) { animOffsetPx.toDp() }
 
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        if (selected) accent.copy(alpha = 0.22f)
-                        else Color.Transparent
-                    )
-                    .clickable {
-                        // 搜索 tab 用长按触发全屏搜索
-                        onSelect(tab)
+                Box(
+                    Modifier
+                        .offset(x = offsetDp + 8.dp)
+                        .padding(vertical = 8.dp)
+                        .width(tabWidthDp - 16.dp)
+                        .fillMaxHeight()
+                        .graphicsLayer {
+                            scaleX = lensScale
+                            scaleY = lensScale
+                        }
+                ) {
+                    Box(
+                        Modifier.fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp))
+                            .liquidGlass(
+                                RoundedCornerShape(24.dp),
+                                dark,
+                                accent.copy(alpha = 0.30f),
+                                0.95f
+                            )
+                    ) {
+                        // 内层径向高光
+                        Box(
+                            Modifier.fillMaxSize()
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        center = Offset(
+                                            x = tabWidthPx * 0.5f,
+                                            y = with(density) { 30.dp.toPx() }
+                                        ),
+                                        radius = with(density) { 90.dp.toPx() },
+                                        colors = listOf(
+                                            Color.White.copy(
+                                                alpha = when {
+                                                    longPressActive -> 0.55f
+                                                    isDragging -> 0.45f
+                                                    else -> 0.28f
+                                                }
+                                            ),
+                                            Color.White.copy(alpha = 0.08f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
                     }
-                    .padding(vertical = 6.dp)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    tab.icon,
-                    contentDescription = tab.label,
-                    tint = if (selected) accent else ThemeState.textDim,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    tab.label,
-                    color = if (selected) accent else ThemeState.textDim,
-                    fontSize = 10.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                )
+                }
+            }
+
+            // ★ 4 个 tab 内容：图标 + 文字
+            Row(Modifier.fillMaxSize()) {
+                tabs.forEachIndexed { index, tab ->
+                    val isNearest = isDragging && index == nearestIndex
+                    val isSelected = !isDragging && tab == current
+                    val isActive = isSelected || isNearest
+
+                    // 字体大小动态
+                    val targetFontSize = when {
+                        isDragging && isNearest -> 13f
+                        isDragging -> 10f
+                        isSelected -> 11f
+                        else -> 10f
+                    }
+                    val fontSizeValue by animateFloatAsState(
+                        targetValue = targetFontSize,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "fontSize"
+                    )
+                    val textAlpha = when {
+                        isDragging && !isNearest -> 0.5f
+                        isDragging -> 1f
+                        isSelected -> 1f
+                        else -> 0.75f
+                    }
+                    val textAlphaValue by animateFloatAsState(
+                        targetValue = textAlpha,
+                        animationSpec = spring(stiffness = Spring.StiffnessLow),
+                        label = "textAlpha"
+                    )
+
+                    // 图标缩放
+                    val iconScale by animateFloatAsState(
+                        targetValue = when {
+                            isActive -> 1.15f
+                            else -> 1f
+                        },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "iconScale"
+                    )
+
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.layout.Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                        ) {
+                            Icon(
+                                tab.icon,
+                                contentDescription = tab.label,
+                                tint = Color.White.copy(alpha = textAlphaValue),
+                                modifier = Modifier
+                                    .width(20.dp)
+                                    .height(20.dp)
+                                    .graphicsLayer {
+                                        scaleX = iconScale
+                                        scaleY = iconScale
+                                    }
+                            )
+                            androidx.compose.foundation.layout.Spacer(
+                                Modifier.height(3.dp)
+                            )
+                            Text(
+                                tab.label,
+                                color = Color.White.copy(alpha = textAlphaValue),
+                                fontSize = fontSizeValue.sp,
+                                fontWeight = if (isActive) FontWeight.SemiBold
+                                             else FontWeight.Medium,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+                }
             }
         }
     }
