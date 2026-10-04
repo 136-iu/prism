@@ -1,23 +1,26 @@
 package com.example.prism.ui.settings
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import com.example.prism.ui.theme.liquidGlass
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,6 +29,7 @@ import com.example.prism.data.Storage
 import com.example.prism.ui.theme.PlayerStyle
 import com.example.prism.ui.theme.ThemePresets
 import com.example.prism.ui.theme.ThemeState
+import com.example.prism.ui.theme.liquidGlass
 
 @Composable
 fun AppearanceSettings(onBack: () -> Unit) {
@@ -34,7 +38,6 @@ fun AppearanceSettings(onBack: () -> Unit) {
     var glassEnabled by remember { mutableStateOf(ThemeState.glassEnabled) }
     var glassIntensity by remember { mutableStateOf(ThemeState.glassIntensity) }
     var playerStyle by remember { mutableStateOf(ThemeState.playerStyle) }
-    var fontScale by remember { mutableStateOf(ThemeState.fontScale) }
     var fontFollowSystem by remember { mutableStateOf(ThemeState.fontFollowSystem) }
 
     Column(
@@ -43,34 +46,20 @@ fun AppearanceSettings(onBack: () -> Unit) {
         SettingsHeader("🎨 外观", onBack)
         Spacer(Modifier.height(20.dp))
 
-        // ★ 主题模式
         SectionCard("主题模式") {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("深色模式", color = ThemeState.text, fontSize = 14.sp)
-                Switch(
-                    checked = isDark,
-                    onCheckedChange = {
-                        isDark = it
-                        ThemeState.isDark = it
-                        Storage.setDark(it)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = accent,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color.Gray
-                    )
-                )
-            }
+            ToggleRow(
+                label = "深色模式",
+                checked = isDark,
+                onChange = {
+                    isDark = it
+                    ThemeState.isDark = it
+                    Storage.setDark(it)
+                }
+            )
         }
 
         Spacer(Modifier.height(12.dp))
 
-        // ★ 主题色
         SectionCard("主题色") {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 ThemePresets.solids.forEach { preset ->
@@ -95,28 +84,11 @@ fun AppearanceSettings(onBack: () -> Unit) {
 
         Spacer(Modifier.height(12.dp))
 
-        // 液态玻璃
         SectionCard("液态玻璃") {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("启用", color = ThemeState.text, fontSize = 14.sp)
-                Switch(
-                    checked = glassEnabled,
-                    onCheckedChange = {
-                        glassEnabled = it
-                        ThemeState.glassEnabled = it
-                        Storage.setGlassEnabled(it)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = accent,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color.Gray
-                    )
-                )
+            ToggleRow("启用", glassEnabled) {
+                glassEnabled = it
+                ThemeState.glassEnabled = it
+                Storage.setGlassEnabled(it)
             }
             if (glassEnabled) {
                 Spacer(Modifier.height(8.dp))
@@ -144,7 +116,6 @@ fun AppearanceSettings(onBack: () -> Unit) {
 
         Spacer(Modifier.height(12.dp))
 
-        // 播放页风格
         SectionCard("播放页风格") {
             Row(
                 Modifier.fillMaxWidth(),
@@ -169,51 +140,11 @@ fun AppearanceSettings(onBack: () -> Unit) {
 
         Spacer(Modifier.height(12.dp))
 
-        // ★ 字体
         SectionCard("字体") {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("跟随系统", color = ThemeState.text, fontSize = 14.sp)
-                Switch(
-                    checked = fontFollowSystem,
-                    onCheckedChange = {
-                        fontFollowSystem = it
-                        ThemeState.fontFollowSystem = it
-                        Storage.setFontFollowSystem(it)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = accent,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color.Gray
-                    )
-                )
-            }
-            if (!fontFollowSystem) {
-                Spacer(Modifier.height(10.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(0.85f to "小", 1f to "中", 1.15f to "大", 1.3f to "超大").forEach { (scale, label) ->
-                        val selected = fontScale == scale
-                        Box(
-                            Modifier.weight(1f).clip(CircleShape)
-                                .background(if (selected) accent.copy(alpha = 0.3f)
-                                            else ThemeState.cardBg)
-                                .clickable {
-                                    fontScale = scale
-                                    ThemeState.fontScale = scale
-                                }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(label,
-                                color = if (selected) ThemeState.text else ThemeState.textDim,
-                                fontSize = 12.sp)
-                        }
-                    }
-                }
+            ToggleRow("跟随系统", fontFollowSystem) {
+                fontFollowSystem = it
+                ThemeState.fontFollowSystem = it
+                Storage.setFontFollowSystem(it)
             }
         }
 
@@ -235,17 +166,17 @@ private fun StyleButton(text: String, selected: Boolean, modifier: Modifier, onC
     }
 }
 
-// ---------- 三个通用组件（所有设置子页共用）----------
-
-// 找到文件底部的这 3 个函数，覆盖掉：
+// ============ 通用组件（所有设置页共用）============
 
 @Composable
 fun SettingsHeader(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(40.dp)
-                .liquidGlass(CircleShape, ThemeState.isDark,
-                    ThemeState.glassTint, ThemeState.glassIntensity)
+                .liquidGlass(
+                    CircleShape, ThemeState.isDark,
+                    ThemeState.glassTint, ThemeState.glassIntensity
+                )
                 .clickable(onClick = onBack),
             contentAlignment = Alignment.Center
         ) {
@@ -285,28 +216,51 @@ fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, color = ThemeState.text, fontSize = 14.sp)
-        // 开关本身也玻璃化
+        IOSSwitch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+@Composable
+fun IOSSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    accent: Color = ThemeState.accent
+) {
+    val dark = ThemeState.isDark
+    val trackOff = if (dark) Color(0xFF39393D) else Color(0xFFE9E9EA)
+
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) accent else trackOff,
+        animationSpec = tween(200),
+        label = "trackColor"
+    )
+
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 22.dp else 2.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "thumbOffset"
+    )
+
+    Box(
+        Modifier
+            .size(width = 50.dp, height = 30.dp)
+            .clip(CircleShape)
+            .background(trackColor)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onCheckedChange(!checked) }
+    ) {
         Box(
             Modifier
-                .size(width = 50.dp, height = 28.dp)
+                .offset(x = thumbOffset, y = 2.dp)
+                .size(26.dp)
                 .clip(CircleShape)
-                .liquidGlass(
-                    CircleShape,
-                    ThemeState.isDark,
-                    if (checked) ThemeState.accent else ThemeState.glassTint,
-                    if (checked) 0.85f else 0.4f
-                )
-                .clickable { onChange(!checked) },
-            contentAlignment = if (checked) Alignment.CenterEnd
-                               else Alignment.CenterStart
-        ) {
-            Box(
-                Modifier
-                    .size(22.dp)
-                    .padding(horizontal = 2.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-            )
-        }
+                .background(Color.White)
+                .shadow(if (checked) 3.dp else 1.dp, CircleShape)
+        )
     }
 }
