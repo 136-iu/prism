@@ -2,6 +2,7 @@ package com.example.prism.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,10 +15,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,12 +44,33 @@ fun MiniPlayer(onExpand: () -> Unit, onOpenQueue: () -> Unit) {
         val dark = ThemeState.isDark
         val gi = if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
 
+        // 拖动偏移
+        var dragY by remember { mutableFloatStateOf(0f) }
+
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp)
                 .height(60.dp)
+                .graphicsLayer {
+                    translationY = dragY.coerceAtMost(0f)  // 只允许向上拖
+                    alpha = 1f - (-dragY.coerceAtMost(0f) / 200f)
+                }
                 .liquidGlass(RoundedCornerShape(16.dp), dark, ThemeState.glassTint, gi)
+                .pointerInput(s.id) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            if (dragY < -60f) {
+                                onExpand()
+                            }
+                            dragY = 0f
+                        },
+                        onDrag = { change, drag ->
+                            dragY += drag.y
+                            change.consume()
+                        }
+                    )
+                }
                 .clickable(onClick = onExpand)
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically

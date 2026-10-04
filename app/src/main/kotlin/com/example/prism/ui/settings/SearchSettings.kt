@@ -6,9 +6,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.prism.ui.theme.ThemeState
 
 @Composable
 fun SearchSettings(onBack: () -> Unit) {
@@ -21,11 +21,11 @@ fun SearchSettings(onBack: () -> Unit) {
         Spacer(Modifier.height(20.dp))
 
         SectionCard("搜索") {
-            Text("默认范围：全部", color = Color.White, fontSize = 14.sp)
-            Spacer(Modifier.height(8.dp))
+            Text("默认范围：全部", color = ThemeState.textDim, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
             ToggleRow("保存搜索历史", saveHistory) { saveHistory = it }
             Spacer(Modifier.height(8.dp))
-            Text("最多保存：20 条", color = Color.White, fontSize = 14.sp)
+            Text("最多保存：20 条", color = ThemeState.textDim, fontSize = 13.sp)
         }
 
         Spacer(Modifier.height(40.dp))

@@ -21,11 +21,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.prism.data.Song
+import coil.compose.AsyncImage
 import com.example.prism.playback.PlayerManager
 import com.example.prism.ui.theme.ThemeState
 
@@ -39,32 +41,30 @@ fun QueueScreen(onBack: () -> Unit) {
     var showClearDialog by remember { mutableStateOf(false) }
 
     Box(
-        Modifier.fillMaxSize().background(
-            Brush.verticalGradient(
-                listOf(Color(0xFF0F0F14), Color(0xFF1A1A2E), Color(0xFF16213E))
+        Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(ThemeState.bgStart, ThemeState.bgMid, ThemeState.bgEnd)
+                )
             )
-        )
-    ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .pointerInput(Unit) {
-                    // 下滑关闭
-                    detectVerticalDragGestures { _, dragAmount ->
-                        if (dragAmount > 60f) onBack()
-                    }
+            .pointerInput(Unit) {
+                // 下滑返回
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount > 80f) onBack()
                 }
-        ) {
+            }
+    ) {
+        Column(Modifier.fillMaxSize().systemBarsPadding()) {
             // 顶部提示
             Text(
                 "此处向下轻扫以返回播放界面",
-                color = Color.White.copy(alpha = 0.5f),
+                color = ThemeState.textFaint,
                 fontSize = 11.sp,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    .padding(vertical = 8.dp)
             )
 
             // 当前播放卡片
@@ -74,26 +74,45 @@ fun QueueScreen(onBack: () -> Unit) {
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.06f))
+                        .background(ThemeState.cardBg)
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.08f)),
+                        Modifier.size(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(ThemeState.iconBg),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🎵", fontSize = 20.sp)
+                        if (song.artworkUri != null) {
+                            AsyncImage(
+                                model = song.artworkUri,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text("🎵", fontSize = 20.sp)
+                        }
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(song.title, color = Color.White,
-                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            song.title,
+                            color = ThemeState.text,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Spacer(Modifier.height(2.dp))
-                        Text(song.artist, color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 12.sp, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
+                        Text(
+                            song.artist,
+                            color = ThemeState.textDim,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -103,18 +122,23 @@ fun QueueScreen(onBack: () -> Unit) {
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val currentIdx = playlist.indexOfFirst { it.id == current?.id }
                 Text(
-                    "${playlist.indexOfFirst { it.id == current?.id } + 1} / ${playlist.size}",
-                    color = Color.White.copy(alpha = 0.5f),
+                    "${if (currentIdx >= 0) currentIdx + 1 else 0} / ${playlist.size}",
+                    color = ThemeState.textFaint,
                     fontSize = 13.sp
                 )
                 Spacer(Modifier.weight(1f))
-                Text("播放队列", color = Color.White,
-                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "播放队列",
+                    color = ThemeState.text,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Spacer(Modifier.weight(1f))
                 Text(
                     "清除",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = ThemeState.textDim,
                     fontSize = 13.sp,
                     modifier = Modifier
                         .clickable { showClearDialog = true }
@@ -134,16 +158,19 @@ fun QueueScreen(onBack: () -> Unit) {
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isCurrent) Color.White.copy(alpha = 0.10f)
+                                if (isCurrent) ThemeState.cardBgStrong
                                 else Color.Transparent
                             )
+                            .clickable {
+                                PlayerManager.playSong(song, playlist)
+                            }
                             .padding(horizontal = 8.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(
                                 song.title,
-                                color = if (isCurrent) Color(0xFFFFD54F) else Color.White,
+                                color = if (isCurrent) accent else ThemeState.text,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
@@ -152,18 +179,33 @@ fun QueueScreen(onBack: () -> Unit) {
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 song.artist,
-                                color = Color.White.copy(alpha = 0.55f),
+                                color = ThemeState.textDim,
                                 fontSize = 12.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                         Box(
-                            Modifier.size(32.dp).clip(CircleShape)
-                                .clickable { /* 从队列移除 */ },
+                            Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    // 从队列移除
+                                    val newList = playlist.toMutableList()
+                                    newList.removeAt(index)
+                                    if (newList.isEmpty()) return@clickable
+                                    val nowCurrent = PlayerManager.currentSong.value
+                                    if (nowCurrent != null) {
+                                        PlayerManager.playSong(nowCurrent, newList)
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("—", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
+                            Text(
+                                "—",
+                                color = ThemeState.textFaint,
+                                fontSize = 16.sp
+                            )
                         }
                     }
                 }
@@ -171,9 +213,11 @@ fun QueueScreen(onBack: () -> Unit) {
 
             // 底部循环模式按钮
             Box(
-                Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 12.dp)
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 40.dp, vertical = 12.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .background(ThemeState.cardBg)
                     .clickable { PlayerManager.cycleRepeatMode() }
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center
@@ -185,7 +229,7 @@ fun QueueScreen(onBack: () -> Unit) {
                         2 -> "单曲循环播放模式"
                         else -> "列表循环播放模式"
                     },
-                    color = Color.White,
+                    color = ThemeState.text,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -198,20 +242,31 @@ fun QueueScreen(onBack: () -> Unit) {
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("清空播放队列？", color = Color.White) },
-            text = { Text("当前播放的歌曲不会被清除。",
-                color = Color.White.copy(alpha = 0.7f)) },
+            title = { Text("清空播放队列？", color = ThemeState.text) },
+            text = {
+                Text(
+                    "当前播放的歌曲会保留，其他清空。",
+                    color = ThemeState.textDim
+                )
+            },
             confirmButton = {
-                TextButton(onClick = { showClearDialog = false }) {
+                TextButton(onClick = {
+                    // 保留当前歌，其他清空
+                    val now = PlayerManager.currentSong.value
+                    if (now != null) {
+                        PlayerManager.playSong(now, listOf(now))
+                    }
+                    showClearDialog = false
+                }) {
                     Text("确定", color = accent, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("取消", color = Color.White.copy(alpha = 0.6f))
+                    Text("取消", color = ThemeState.textDim)
                 }
             },
-            containerColor = Color(0xFF1A1A2E)
+            containerColor = ThemeState.bgMid
         )
     }
 }

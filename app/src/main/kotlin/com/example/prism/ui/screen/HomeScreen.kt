@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.prism.data.Song
 import com.example.prism.playback.PlayerManager
-import com.example.prism.ui.component.SongItem
 import com.example.prism.ui.theme.ThemeState
 import com.example.prism.ui.theme.liquidGlass
 
@@ -42,7 +41,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ★ 顶部：欢迎 + 搜索按钮
+        // 顶部
         item {
             Row(
                 Modifier.fillMaxWidth(),
@@ -55,7 +54,6 @@ fun HomeScreen(
                     Text("共 ${allSongs.size} 首歌曲",
                         color = ThemeState.textDim, fontSize = 13.sp)
                 }
-                // ★ 右上角搜索按钮
                 Box(
                     Modifier.size(44.dp).clip(CircleShape)
                         .background(ThemeState.iconBg)
@@ -68,51 +66,70 @@ fun HomeScreen(
             Spacer(Modifier.height(14.dp))
         }
 
-        if (allSongs.isNotEmpty()) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().height(200.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+        if (allSongs.isEmpty()) return@LazyColumn
+
+        // 大卡 + 右侧小卡
+        item {
+            Row(
+                Modifier.fillMaxWidth().height(200.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                BigCard(
+                    song = allSongs.first(),
+                    dark = dark,
+                    gi = gi,
+                    modifier = Modifier.weight(6f).fillMaxHeight(),
+                    onClick = { onSongClick(allSongs.first()) }
+                )
+                Column(
+                    Modifier.weight(4f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    BigCard(
-                        song = allSongs.first(),
-                        dark = dark,
-                        gi = gi,
-                        modifier = Modifier.weight(6f).fillMaxHeight(),
-                        onClick = { onSongClick(allSongs.first()) }
-                    )
-                    Column(
-                        Modifier.weight(4f).fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        allSongs.drop(1).take(2).forEach { s ->
-                            SmallCard(
-                                song = s,
-                                dark = dark,
-                                gi = gi,
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
-                                onClick = { onSongClick(s) }
-                            )
-                        }
+                    allSongs.drop(1).take(2).forEach { s ->
+                        SideSmallCard(
+                            song = s,
+                            dark = dark,
+                            gi = gi,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            onClick = { onSongClick(s) }
+                        )
                     }
                 }
-                Spacer(Modifier.height(6.dp))
             }
+            Spacer(Modifier.height(10.dp))
+        }
 
-            item {
-                Text("🎵 更多推荐", color = ThemeState.text,
-                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(8.dp))
-            }
+        // 更多推荐标题
+        item {
+            Text("🎵 更多推荐", color = ThemeState.text,
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+        }
 
-            items(allSongs.drop(3).take(15)) { song ->
-                SongItem(
-                    song = song,
-                    isPlaying = song.id == currentSong?.id,
-                    onClick = { onSongClick(song) },
-                    showActions = false
-                )
+        // 每行 4 张的网格（总共 5~6 行 = 20~24 张）
+        val gridSongs = allSongs.drop(3).take(24)
+        val rows = gridSongs.chunked(4)
+        items(rows) { rowSongs ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowSongs.forEach { s ->
+                    GridCard(
+                        song = s,
+                        dark = dark,
+                        gi = gi,
+                        isPlaying = s.id == currentSong?.id,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSongClick(s) }
+                    )
+                }
+                // 补齐空位
+                repeat(4 - rowSongs.size) {
+                    Spacer(Modifier.weight(1f))
+                }
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -146,7 +163,7 @@ private fun BigCard(
 }
 
 @Composable
-private fun SmallCard(
+private fun SideSmallCard(
     song: Song,
     dark: Boolean,
     gi: Float,
@@ -185,5 +202,60 @@ private fun SmallCard(
                     overflow = TextOverflow.Ellipsis)
             }
         }
+    }
+}
+
+@Composable
+private fun GridCard(
+    song: Song,
+    dark: Boolean,
+    gi: Float,
+    isPlaying: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 封面
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(ThemeState.iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            if (song.artworkUri != null) {
+                AsyncImage(
+                    model = song.artworkUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text("🎵", fontSize = 32.sp)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            song.title,
+            color = if (isPlaying) ThemeState.accent else ThemeState.text,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            song.artist,
+            color = ThemeState.textDim,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
