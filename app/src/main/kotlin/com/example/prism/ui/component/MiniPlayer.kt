@@ -65,8 +65,8 @@ fun MiniPlayer(onExpand: () -> Unit, onOpenQueue: () -> Unit) {
                             }
                             dragY = 0f
                         },
-                        onDrag = { change, drag ->
-                            dragY += drag.y
+                        onVerticalDrag = { change, dragAmount ->
+                            dragY += dragAmount
                             change.consume()
                         }
                     )
