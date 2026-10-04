@@ -192,7 +192,7 @@ fun PrismApp() {
                 BottomNavBar(
                     current = currentTab,
                     onSelect = { currentTab = it },
-                    onOpenSearchOverlay = { showSearchFull = true }
+                    onLongPressSearch = { showSearchFull = true }
                 )
             }
 
