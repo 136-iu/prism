@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
 fun PrismApp() {
     val context = LocalContext.current
 
+    // 加载持久化设置
     LaunchedEffect(Unit) {
         ThemeState.isDark = Storage.isDark()
         ThemeState.accent = Color(Storage.getAccentValue())
@@ -107,6 +109,7 @@ fun PrismApp() {
         }
     }
 
+    // 返回手势
     BackHandler(enabled = true) {
         when {
             showSearchFull -> showSearchFull = false
@@ -126,9 +129,13 @@ fun PrismApp() {
         return
     }
 
+    // ★ 字体跟随系统
     val systemDensity = LocalDensity.current
-    val effectiveFontScale = if (ThemeState.fontFollowSystem)
-        systemDensity.fontScale else ThemeState.fontScale
+    val effectiveFontScale = if (ThemeState.fontFollowSystem) {
+        systemDensity.fontScale
+    } else {
+        ThemeState.fontScale
+    }
 
     CompositionLocalProvider(
         LocalDensity provides Density(
@@ -136,115 +143,107 @@ fun PrismApp() {
             fontScale = effectiveFontScale
         )
     ) {
-        // ★ 全局玻璃背景
         GlassBackground {
-            Box(Modifier.fillMaxSize()) {
-                Column(Modifier.fillMaxSize().systemBarsPadding()) {
-                    Box(Modifier.weight(1f)) {
-                        if (!hasPermission) {
-                            Box(Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center) {
-                                Text("需要音频权限",
-                                    color = ThemeState.text, fontSize = 15.sp)
-                            }
-                        } else {
-                            when (currentTab) {
-                                NavTab.HOME -> HomeScreen(
-                                    allSongs = songs,
-                                    onSongClick = {
-                                        PlayerManager.playSong(it, songs)
-                                        overlay = MainOverlay.PLAYER
-                                    },
-                                    onOpenSearch = { showSearchFull = true }
-                                )
-                                NavTab.LIBRARY -> LibraryScreen(
-                                    allSongs = songs,
-                                    onSongClick = {
-                                        PlayerManager.playSong(it, songs)
-                                        overlay = MainOverlay.PLAYER
-                                    },
-                                    onOpenPlaylists = { overlay = MainOverlay.PLAYLIST }
-                                )
-                                NavTab.SEARCH -> SearchScreen(
-                                    allSongs = songs,
-                                    onSongClick = {
-                                        PlayerManager.playSong(it, songs)
-                                        overlay = MainOverlay.PLAYER
-                                    }
-                                )
-                                NavTab.SETTINGS -> SettingsScreen(
-                                    onNavigate = { overlay = it }
-                                )
-                            }
+            Column(Modifier.fillMaxSize().systemBarsPadding()) {
+                Box(Modifier.weight(1f)) {
+                    if (!hasPermission) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("需要音频权限", color = ThemeState.text, fontSize = 15.sp)
                         }
-                    }
-                    MiniPlayer(
-                        onExpand = { overlay = MainOverlay.PLAYER },
-                        onOpenQueue = { overlay = MainOverlay.QUEUE }
-                    )
-                    BottomNavBar(
-                        current = currentTab,
-                        onSelect = { currentTab = it },
-                        onLongPressSearch = { showSearchFull = true }
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = overlay != MainOverlay.NONE,
-                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-                ) {
-                    // ★ 全屏 overlay 也用玻璃背景
-                    GlassBackground {
-                        val close = { overlay = MainOverlay.NONE }
-                        val backToPlayer = { overlay = MainOverlay.PLAYER }
-                        when (overlay) {
-                            MainOverlay.PLAYER -> PlayerScreen(
-                                onBack = close,
-                                onOpenLyrics = { overlay = MainOverlay.LYRICS },
-                                onOpenQueue = { overlay = MainOverlay.QUEUE },
-                                onOpenEqualizer = { overlay = MainOverlay.EQUALIZER }
+                    } else {
+                        when (currentTab) {
+                            NavTab.HOME -> HomeScreen(
+                                allSongs = songs,
+                                onSongClick = {
+                                    PlayerManager.playSong(it, songs)
+                                    overlay = MainOverlay.PLAYER
+                                },
+                                onOpenSearch = { showSearchFull = true }
                             )
-                            MainOverlay.LYRICS -> {
-                                val s = PlayerManager.currentSong.collectAsState().value
-                                if (s != null) LyricsScreen(song = s, onBack = backToPlayer)
-                                else LaunchedEffect(Unit) { backToPlayer() }
-                            }
-                            MainOverlay.QUEUE -> QueueScreen(onBack = backToPlayer)
-                            MainOverlay.EQUALIZER -> EqualizerScreen(onBack = backToPlayer)
-                            MainOverlay.PLAYLIST -> PlaylistScreen(onBack = close)
-                            MainOverlay.APPEARANCE -> AppearanceSettings(onBack = close)
-                            MainOverlay.ANIMATION -> AnimationSettings(onBack = close)
-                            MainOverlay.HOME_SETTINGS -> HomeSettings(onBack = close)
-                            MainOverlay.LIBRARY_SETTINGS -> LibrarySettings(onBack = close)
-                            MainOverlay.PLAYLIST_SETTINGS -> PlaylistSettings(onBack = close)
-                            MainOverlay.PLAYBACK_SETTINGS -> PlaybackSettings(onBack = close)
-                            MainOverlay.LYRICS_SETTINGS -> LyricsSettings(onBack = close)
-                            MainOverlay.SEARCH_SETTINGS -> SearchSettings(onBack = close)
-                            MainOverlay.EXTENSIONS -> ExtensionsSettings(onBack = close)
-                            MainOverlay.WIDGET_SETTINGS -> WidgetSettings(onBack = close)
-                            MainOverlay.STORAGE -> StorageSettings(onBack = close)
-                            MainOverlay.LAB -> LabSettings(onBack = close)
-                            MainOverlay.NONE -> {}
+                            NavTab.LIBRARY -> LibraryScreen(
+                                allSongs = songs,
+                                onSongClick = {
+                                    PlayerManager.playSong(it, songs)
+                                    overlay = MainOverlay.PLAYER
+                                },
+                                onOpenPlaylists = { overlay = MainOverlay.PLAYLIST }
+                            )
+                            NavTab.SEARCH -> SearchScreen(
+                                allSongs = songs,
+                                onSongClick = {
+                                    PlayerManager.playSong(it, songs)
+                                    overlay = MainOverlay.PLAYER
+                                }
+                            )
+                            NavTab.SETTINGS -> SettingsScreen(onNavigate = { overlay = it })
                         }
                     }
                 }
+                MiniPlayer(
+                    onExpand = { overlay = MainOverlay.PLAYER },
+                    onOpenQueue = { overlay = MainOverlay.QUEUE }
+                )
+                BottomNavBar(
+                    current = currentTab,
+                    onSelect = { currentTab = it },
+                    onLongPressSearch = { showSearchFull = true }
+                )
+            }
 
-                AnimatedVisibility(
-                    visible = showSearchFull,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    SearchOverlayScreen(
-                        allSongs = songs,
-                        onSongClick = {
-                            PlayerManager.playSong(it, songs)
-                            showSearchFull = false
-                            overlay = MainOverlay.PLAYER
-                        },
-                        onClose = { showSearchFull = false }
-                    )
+            AnimatedVisibility(
+                visible = overlay != MainOverlay.NONE,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            ) {
+                GlassBackground {
+                    val close = { overlay = MainOverlay.NONE }
+                    val backToPlayer = { overlay = MainOverlay.PLAYER }
+                    when (overlay) {
+                        MainOverlay.PLAYER -> PlayerScreen(
+                            onBack = close,
+                            onOpenLyrics = { overlay = MainOverlay.LYRICS },
+                            onOpenQueue = { overlay = MainOverlay.QUEUE },
+                            onOpenEqualizer = { overlay = MainOverlay.EQUALIZER }
+                        )
+                        MainOverlay.LYRICS -> {
+                            val s = PlayerManager.currentSong.collectAsState().value
+                            if (s != null) LyricsScreen(song = s, onBack = backToPlayer)
+                            else LaunchedEffect(Unit) { backToPlayer() }
+                        }
+                        MainOverlay.QUEUE -> QueueScreen(onBack = backToPlayer)
+                        MainOverlay.EQUALIZER -> EqualizerScreen(onBack = backToPlayer)
+                        MainOverlay.PLAYLIST -> PlaylistScreen(onBack = close)
+                        MainOverlay.APPEARANCE -> AppearanceSettings(onBack = close)
+                        MainOverlay.ANIMATION -> AnimationSettings(onBack = close)
+                        MainOverlay.HOME_SETTINGS -> HomeSettings(onBack = close)
+                        MainOverlay.LIBRARY_SETTINGS -> LibrarySettings(onBack = close)
+                        MainOverlay.PLAYLIST_SETTINGS -> PlaylistSettings(onBack = close)
+                        MainOverlay.PLAYBACK_SETTINGS -> PlaybackSettings(onBack = close)
+                        MainOverlay.LYRICS_SETTINGS -> LyricsSettings(onBack = close)
+                        MainOverlay.SEARCH_SETTINGS -> SearchSettings(onBack = close)
+                        MainOverlay.EXTENSIONS -> ExtensionsSettings(onBack = close)
+                        MainOverlay.WIDGET_SETTINGS -> WidgetSettings(onBack = close)
+                        MainOverlay.STORAGE -> StorageSettings(onBack = close)
+                        MainOverlay.LAB -> LabSettings(onBack = close)
+                        MainOverlay.NONE -> {}
+                    }
                 }
+            }
+
+            AnimatedVisibility(
+                visible = showSearchFull,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                SearchOverlayScreen(
+                    allSongs = songs,
+                    onSongClick = {
+                        PlayerManager.playSong(it, songs)
+                        showSearchFull = false
+                        overlay = MainOverlay.PLAYER
+                    },
+                    onClose = { showSearchFull = false }
+                )
             }
         }
     }

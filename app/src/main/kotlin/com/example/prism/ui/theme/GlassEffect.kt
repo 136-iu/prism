@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.matchParentSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -13,165 +11,77 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-// ============================================================
-// 核心：液态玻璃修饰符
-// ============================================================
 fun Modifier.liquidGlass(
     shape: Shape,
     dark: Boolean,
-    tint: Color = Color.Unspecified,
-    intensity: Float = 0.6f,
-    highLight: Boolean = true
+    tint: Color = Color.White.copy(alpha = 0.10f),
+    intensity: Float = 0.55f
 ): Modifier {
     val i = intensity.coerceIn(0f, 1f)
-
-    // 玻璃基色
-    val baseTint = if (tint == Color.Unspecified) {
-        if (dark) Color(0xFF252540) else Color(0xFFFFFFFF)
-    } else tint
-
-    // 透明度映射：intensity 越高越透明
-    val fillTopAlpha = if (dark) (0.32f - i * 0.18f) else (0.60f - i * 0.30f)
-    val fillBottomAlpha = if (dark) (0.16f - i * 0.08f) else (0.35f - i * 0.18f)
-    val borderAlpha = if (dark) (0.18f + i * 0.30f) else (0.55f + i * 0.35f)
-
-    var modifier = this
+    val tintA = (1f - i) * 0.6f + 0.05f
+    return this
         .clip(shape)
-        // 主渐变底
         .background(
             Brush.linearGradient(
-                colors = listOf(
-                    baseTint.copy(alpha = fillTopAlpha.coerceAtLeast(0.03f)),
-                    baseTint.copy(alpha = fillBottomAlpha.coerceAtLeast(0.02f))
+                listOf(
+                    tint.copy(alpha = tintA * 1.4f),
+                    tint.copy(alpha = tintA * 0.6f)
                 )
             )
         )
-
-    // 左上角内高光（模拟光照）
-    if (highLight) {
-        modifier = modifier.background(
-            Brush.radialGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = if (dark) 0.12f * i else 0.25f * i),
-                    Color.Transparent
-                ),
-                center = Offset(100f, 100f),
-                radius = 500f
-            )
+        .border(
+            width = (0.8f + i * 0.6f).dp,
+            brush = Brush.linearGradient(
+                listOf(
+                    Color.White.copy(alpha = i * (if (dark) 0.4f else 0.9f)),
+                    Color.White.copy(alpha = i * (if (dark) 0.05f else 0.2f))
+                )
+            ),
+            shape = shape
         )
-    }
-
-    // 高光边框
-    return modifier.border(
-        width = (0.8f + i * 0.6f).dp,
-        brush = Brush.linearGradient(
-            colors = listOf(
-                Color.White.copy(alpha = borderAlpha),
-                Color.White.copy(alpha = borderAlpha * 0.12f),
-                Color.White.copy(alpha = borderAlpha * 0.45f)
-            )
-        ),
-        shape = shape
-    )
 }
 
-// ============================================================
-// 全局玻璃背景（最外层包一层）
-// ============================================================
+/**
+ * 全局玻璃背景：渐变 + 主色光晕 + 顶部高光
+ */
 @Composable
 fun GlassBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val dark = ThemeState.isDark
-    val bgStart = ThemeState.bgStart
-    val bgMid = ThemeState.bgMid
-    val bgEnd = ThemeState.bgEnd
     val accent = ThemeState.accent
-
     Box(
-        modifier.background(
-            Brush.verticalGradient(listOf(bgStart, bgMid, bgEnd))
-        )
+        modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(ThemeState.bgStart, ThemeState.bgMid, ThemeState.bgEnd)
+                )
+            )
+            // 主色光晕（底部偏上，营造氛围感）
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        accent.copy(alpha = 0.18f),
+                        accent.copy(alpha = 0f)
+                    ),
+                    center = Offset(0.5f, 0.35f),
+                    radius = 1200f
+                )
+            )
+            // 顶部高光
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.06f),
+                        Color.Transparent
+                    ),
+                    endY = 400f
+                )
+            )
     ) {
-        // 主色光晕（左上）
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            accent.copy(alpha = if (dark) 0.20f else 0.12f),
-                            Color.Transparent
-                        ),
-                        center = Offset(300f, 300f),
-                        radius = 1400f
-                    )
-                )
-        )
-        // 副光晕（右下）
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF2196F3).copy(alpha = if (dark) 0.12f else 0.06f),
-                            Color.Transparent
-                        ),
-                        center = Offset(1200f, 2000f),
-                        radius = 1800f
-                    )
-                )
-        )
-        // 顶部高光
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (dark) 0.05f else 0.20f),
-                            Color.Transparent,
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
         content()
-    }
-}
-
-// ============================================================
-// 通用玻璃卡片组件
-// ============================================================
-@Composable
-fun GlassCard(
-    modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
-    tint: Color = Color.Unspecified,
-    intensity: Float = -1f,
-    padding: Dp = 16.dp,
-    content: @Composable () -> Unit
-) {
-    val dark = ThemeState.isDark
-    val gi = if (intensity < 0f) {
-        if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
-    } else intensity
-
-    Box(
-        modifier.liquidGlass(
-            shape = shape,
-            dark = dark,
-            tint = if (tint == Color.Unspecified) ThemeState.glassTint else tint,
-            intensity = gi
-        )
-    ) {
-        Box(Modifier.padding(padding)) {
-            content()
-        }
     }
 }
