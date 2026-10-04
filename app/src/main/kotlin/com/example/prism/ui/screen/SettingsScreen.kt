@@ -16,9 +16,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.prism.MainOverlay
 import com.example.prism.ui.theme.ThemeState
+import com.example.prism.ui.theme.liquidGlass
 
 @Composable
 fun SettingsScreen(onNavigate: (MainOverlay) -> Unit) {
+    val dark = ThemeState.isDark
+    val gi = if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
@@ -26,18 +30,18 @@ fun SettingsScreen(onNavigate: (MainOverlay) -> Unit) {
             fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(20.dp))
 
-        SettingRow("🎨", "外观", "主题 · 玻璃 · 字体") { onNavigate(MainOverlay.APPEARANCE) }
-        SettingRow("🎬", "动画", "回弹 · 过渡") { onNavigate(MainOverlay.ANIMATION) }
-        SettingRow("🏠", "主页", "卡片 · 布局") { onNavigate(MainOverlay.HOME_SETTINGS) }
-        SettingRow("📚", "资料库", "显示 · 文件夹") { onNavigate(MainOverlay.LIBRARY_SETTINGS) }
-        SettingRow("📁", "歌单", "导入 · 导出") { onNavigate(MainOverlay.PLAYLIST_SETTINGS) }
-        SettingRow("▶️", "播放", "音质 · 音效") { onNavigate(MainOverlay.PLAYBACK_SETTINGS) }
-        SettingRow("📝", "歌词", "显示 · 翻译") { onNavigate(MainOverlay.LYRICS_SETTINGS) }
-        SettingRow("🔍", "搜索", "范围 · 历史") { onNavigate(MainOverlay.SEARCH_SETTINGS) }
-        SettingRow("🔌", "扩展", "音源 · AI 模型") { onNavigate(MainOverlay.EXTENSIONS) }
-        SettingRow("📱", "小组件", "尺寸 · 样式") { onNavigate(MainOverlay.WIDGET_SETTINGS) }
-        SettingRow("💾", "存储", "缓存 · 数据") { onNavigate(MainOverlay.STORAGE) }
-        SettingRow("🧪", "实验室", "实验功能") { onNavigate(MainOverlay.LAB) }
+        SettingRow("🎨", "外观", "主题 · 玻璃 · 字体", dark, gi) { onNavigate(MainOverlay.APPEARANCE) }
+        SettingRow("🎬", "动画", "回弹 · 过渡", dark, gi) { onNavigate(MainOverlay.ANIMATION) }
+        SettingRow("🏠", "主页", "卡片 · 布局", dark, gi) { onNavigate(MainOverlay.HOME_SETTINGS) }
+        SettingRow("📚", "资料库", "显示 · 文件夹", dark, gi) { onNavigate(MainOverlay.LIBRARY_SETTINGS) }
+        SettingRow("📁", "歌单", "导入 · 导出", dark, gi) { onNavigate(MainOverlay.PLAYLIST_SETTINGS) }
+        SettingRow("▶️", "播放", "音质 · 音效", dark, gi) { onNavigate(MainOverlay.PLAYBACK_SETTINGS) }
+        SettingRow("📝", "歌词", "显示 · 翻译", dark, gi) { onNavigate(MainOverlay.LYRICS_SETTINGS) }
+        SettingRow("🔍", "搜索", "范围 · 历史", dark, gi) { onNavigate(MainOverlay.SEARCH_SETTINGS) }
+        SettingRow("🔌", "扩展", "音源 · AI 模型", dark, gi) { onNavigate(MainOverlay.EXTENSIONS) }
+        SettingRow("📱", "小组件", "尺寸 · 样式", dark, gi) { onNavigate(MainOverlay.WIDGET_SETTINGS) }
+        SettingRow("💾", "存储", "缓存 · 数据", dark, gi) { onNavigate(MainOverlay.STORAGE) }
+        SettingRow("🧪", "实验室", "实验功能", dark, gi) { onNavigate(MainOverlay.LAB) }
 
         Spacer(Modifier.height(40.dp))
     }
@@ -48,14 +52,15 @@ private fun SettingRow(
     emoji: String,
     title: String,
     subtitle: String,
+    dark: Boolean,
+    gi: Float,
     onClick: () -> Unit
 ) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(ThemeState.cardBg)
+            .liquidGlass(RoundedCornerShape(14.dp), dark, ThemeState.glassTint, gi)
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -69,7 +74,8 @@ private fun SettingRow(
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = ThemeState.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(title, color = ThemeState.text, fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(2.dp))
             Text(subtitle, color = ThemeState.textDim, fontSize = 12.sp)
         }
