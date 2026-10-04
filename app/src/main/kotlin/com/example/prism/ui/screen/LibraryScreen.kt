@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.prism.data.Song
+import com.example.prism.data.Storage
 import com.example.prism.playback.PlayerManager
 import com.example.prism.ui.component.SongItem
 import com.example.prism.ui.theme.ThemeState
@@ -39,6 +40,11 @@ fun LibraryScreen(
     val currentSong by PlayerManager.currentSong.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    // 读设置
+    val showFolder = Storage.getLibShowFolder()
+    val showAlbum = Storage.getLibShowAlbum()
+    val showArtist = Storage.getLibShowArtist()
 
     val grouped = remember(allSongs) { PinyinHelper.groupByLetter(allSongs) }
     val sortedLetters = remember(grouped) { grouped.keys.toList() }
@@ -66,6 +72,15 @@ fun LibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             LibraryTab.values().forEach { t ->
+                // 根据设置过滤 tab
+                val visible = when (t) {
+                    LibraryTab.ALBUMS -> showAlbum
+                    LibraryTab.ARTISTS -> showArtist
+                    LibraryTab.FOLDERS -> showFolder
+                    else -> true
+                }
+                if (!visible) return@forEach
+
                 val sel = t == tab
                 Box(
                     Modifier.weight(1f).clip(CircleShape)
