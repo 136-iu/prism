@@ -76,7 +76,7 @@ object ThemeState {
         "粉" to Color(0xFFE91E63)
     )
 
-    fun setAccent(color: Color) {
+    fun applyAccent(color: Color) {
         accent = color
         accentValue = color.value.toLong()
     }
