@@ -14,9 +14,11 @@ import com.example.prism.widget.WidgetUpdateHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 object PlayerManager {
@@ -26,6 +28,9 @@ object PlayerManager {
     private var tickJob: Job? = null
     private var serviceStarted = false
     private var lastWidgetUpdate = 0L
+
+    // ★ 所有 IO 活都在这跑，不阻塞主线程
+    private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong
@@ -54,20 +59,24 @@ object PlayerManager {
     fun init(context: Context) {
         if (player != null) return
         appContext = context.applicationContext
+
         player = ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
-                    updateWidgets(force = true)
+                    // ★ 异步更新小组件
+                    updateWidgetsAsync(force = true)
                 }
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     val idx = currentMediaItemIndex
                     val list = _playlist.value
                     if (idx in list.indices) {
-                        _currentSong.value = list[idx]
-                        recordPlay(list[idx])
+                        val s = list[idx]
+                        _currentSong.value = s
+                        // ★ 异步写历史/统计
+                        recordPlayAsync(s)
                     }
-                    updateWidgets(force = true)
+                    updateWidgetsAsync(force = true)
                 }
                 override fun onPlaybackStateChanged(state: Int) {
                     if (state == Player.STATE_READY) {
@@ -96,57 +105,73 @@ object PlayerManager {
         } catch (_: Exception) {}
     }
 
+    // ★ tick 在 Default 线程，不阻塞主线程
     private fun startTick() {
         tickJob?.cancel()
-        tickJob = CoroutineScope(Dispatchers.Main).launch {
-            while (true) {
+        tickJob = CoroutineScope(Dispatchers.Default).launch {
+            while (isActive) {
                 delay(1000)
                 val p = player ?: continue
-                if (p.isPlaying) {
-                    _progressMs.value = p.currentPosition
-                }
-                val d = p.duration
-                if (d > 0 && _durationMs.value != d) {
-                    _durationMs.value = d
+                try {
+                    if (p.isPlaying) {
+                        _progressMs.value = p.currentPosition
+                    }
+                    val d = p.duration
+                    if (d > 0 && _durationMs.value != d) {
+                        _durationMs.value = d
+                    }
+                } catch (_: Exception) {
+                    // 播放器已释放
                 }
             }
         }
     }
 
-    private fun updateWidgets(force: Boolean = false) {
-        val now = System.currentTimeMillis()
-        if (!force && now - lastWidgetUpdate < 5000L) return
-        lastWidgetUpdate = now
-        appContext?.let {
-            WidgetDataCache.currentSong = _currentSong.value
-            WidgetDataCache.isPlaying = _isPlaying.value
-            WidgetDataCache.positionMs = _progressMs.value
-            WidgetDataCache.durationMs = _durationMs.value
-            try { WidgetUpdateHelper.updateAll(it) } catch (_: Exception) {}
+    // ★ 小组件更新放到 IO 线程，节流
+    private fun updateWidgetsAsync(force: Boolean = false) {
+        val ctx = appContext ?: return
+        ioScope.launch {
+            try {
+                val now = System.currentTimeMillis()
+                if (!force && now - lastWidgetUpdate < 5000L) return@launch
+                lastWidgetUpdate = now
+                WidgetDataCache.currentSong = _currentSong.value
+                WidgetDataCache.isPlaying = _isPlaying.value
+                WidgetDataCache.positionMs = _progressMs.value
+                WidgetDataCache.durationMs = _durationMs.value
+                WidgetUpdateHelper.updateAll(ctx)
+            } catch (_: Exception) {}
         }
     }
 
-    private fun recordPlay(song: Song) {
-        val history = Storage.loadHistory().toMutableList()
-        history.remove(song.id)
-        history.add(0, song.id)
-        Storage.saveHistory(history.take(1000))
+    // ★ 播放记录写 IO 线程，不阻塞主线程
+    private fun recordPlayAsync(song: Song) {
+        ioScope.launch {
+            try {
+                val history = Storage.loadHistory().toMutableList()
+                history.remove(song.id)
+                history.add(0, song.id)
+                Storage.saveHistory(history.take(1000))
 
-        val stats = Storage.loadStats().toMutableList()
-        val idx = stats.indexOfFirst { it.songId == song.id }
-        if (idx >= 0) {
-            val s = stats[idx]
-            stats[idx] = s.copy(
-                playCount = s.playCount + 1,
-                lastPlayedAt = System.currentTimeMillis()
-            )
-        } else {
-            stats.add(Storage.Stats(song.id, 0L, 1, System.currentTimeMillis()))
+                val stats = Storage.loadStats().toMutableList()
+                val idx = stats.indexOfFirst { it.songId == song.id }
+                if (idx >= 0) {
+                    val s = stats[idx]
+                    stats[idx] = s.copy(
+                        playCount = s.playCount + 1,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
+                } else {
+                    stats.add(Storage.Stats(song.id, 0L, 1, System.currentTimeMillis()))
+                }
+                Storage.saveStats(stats)
+            } catch (_: Exception) {}
         }
-        Storage.saveStats(stats)
     }
 
-    fun setAllSongs(songs: List<Song>) { _allSongs.value = songs }
+    fun setAllSongs(songs: List<Song>) {
+        _allSongs.value = songs
+    }
 
     fun playSong(song: Song, list: List<Song> = _allSongs.value) {
         val p = player ?: return
@@ -154,8 +179,10 @@ object PlayerManager {
 
         startForegroundService()
         _playlist.value = list
+
         p.clearMediaItems()
         list.forEach { s ->
+            // ★ 只传基础元数据，artworkUri 不传给 ExoPlayer（避免兼容问题）
             p.addMediaItem(
                 MediaItem.Builder()
                     .setUri(s.uri)
@@ -164,7 +191,6 @@ object PlayerManager {
                             .setTitle(s.title)
                             .setArtist(s.artist)
                             .setAlbumTitle(s.album)
-                            .setArtworkUri(s.artworkUri)
                             .build()
                     )
                     .build()
@@ -176,13 +202,13 @@ object PlayerManager {
         p.play()
         _currentSong.value = song
         _progressMs.value = 0L
-        updateWidgets(force = true)
+        updateWidgetsAsync(force = true)
     }
 
     fun togglePlayPause() {
         val p = player ?: return
         if (p.isPlaying) p.pause() else p.play()
-        updateWidgets(force = true)
+        updateWidgetsAsync(force = true)
     }
 
     fun next() { player?.seekToNextMediaItem(); player?.play() }
