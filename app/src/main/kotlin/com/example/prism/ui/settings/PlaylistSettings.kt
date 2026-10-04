@@ -1,5 +1,6 @@
 package com.example.prism.ui.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,7 @@ import com.example.prism.ui.theme.ThemeState
 @Composable
 fun PlaylistSettings(onBack: () -> Unit) {
     val context = LocalContext.current
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
@@ -36,11 +38,11 @@ fun PlaylistSettings(onBack: () -> Unit) {
 
         SectionCard("操作") {
             ActionButton("📤 导出歌单") {
-                android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "功能开发中", Toast.LENGTH_SHORT).show()
             }
             Spacer(Modifier.height(8.dp))
             ActionButton("📥 导入歌单") {
-                android.widget.Toast.makeText(context, "功能开发中", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "功能开发中", Toast.LENGTH_SHORT).show()
             }
         }
 
