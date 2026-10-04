@@ -15,8 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +44,6 @@ fun MiniPlayer(onExpand: () -> Unit, onOpenQueue: () -> Unit) {
         val dark = ThemeState.isDark
         val gi = if (ThemeState.glassEnabled) ThemeState.glassIntensity else 0f
 
-        // 拖动偏移
         var dragY by remember { mutableFloatStateOf(0f) }
 
         Row(
@@ -53,20 +52,19 @@ fun MiniPlayer(onExpand: () -> Unit, onOpenQueue: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 6.dp)
                 .height(60.dp)
                 .graphicsLayer {
-                    translationY = dragY.coerceAtMost(0f)  // 只允许向上拖
+                    translationY = dragY.coerceAtMost(0f)
                     alpha = 1f - (-dragY.coerceAtMost(0f) / 200f)
                 }
-                .liquidGlass(RoundedCornerShape(16.dp), dark, ThemeState.glassTint, gi)
+                .liquidGlass(RoundedCornerShape(16.dp), dark,
+                    ThemeState.glassTint, gi)
                 .pointerInput(s.id) {
                     detectVerticalDragGestures(
                         onDragEnd = {
-                            if (dragY < -60f) {
-                                onExpand()
-                            }
+                            if (dragY < -60f) onExpand()
                             dragY = 0f
                         },
-                        onVerticalDrag = { change, dragAmount ->
-                            dragY += dragAmount
+                        onDrag = { change, drag ->
+                            dragY += drag.y
                             change.consume()
                         }
                     )
